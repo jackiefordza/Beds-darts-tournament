@@ -233,6 +233,14 @@
             </div>
         );
 
+        const StepHeader = ({ n, children, hint }) => (
+            <div className="flex items-center gap-2 mb-2">
+                <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-[11px] font-black flex items-center justify-center shrink-0">{n}</span>
+                <label className="text-slate-300 font-bold uppercase text-xs">{children}</label>
+                {hint && <span className="text-slate-500 text-[10px] normal-case font-normal italic">{hint}</span>}
+            </div>
+        );
+
         const Button = ({ onClick, children, variant = 'primary', disabled = false, className = '' }) => {
             const baseStyle = "px-4 py-3 rounded-lg font-bold flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation text-lg tracking-wide";
             const variants = {
@@ -412,7 +420,11 @@
         function App() {
             const [user, setUser] = useState(null);
             const generatePin = () => Math.floor(1000 + Math.random() * 9000).toString();
-            const [tournamentId, setTournamentId] = useState(generatePin);
+            // Lets a second tab/device join the same room automatically via a ?pin=1234 link,
+            // instead of having to retype the PIN into "Join Existing Room" every time.
+            const urlParams = new URLSearchParams(window.location.search);
+            const pinFromUrl = urlParams.get('pin');
+            const [tournamentId, setTournamentId] = useState(() => (pinFromUrl && /^\d{3,4}$/.test(pinFromUrl)) ? pinFromUrl : generatePin());
             const [tournamentName, setTournamentName] = useState('Darts Event');
             const [joinPin, setJoinPin] = useState('');
             const [phase, setPhase] = useState('setup'); 
@@ -430,13 +442,14 @@
             const [boardNames, setBoardNames] = useState([]); 
             const [scorers, setScorers] = useState([]); 
             const [champion, setChampion] = useState(null);
-            const [view, setView] = useState('dashboard'); 
+            const [view, setView] = useState(() => urlParams.get('view') === 'projector' ? 'projector' : 'dashboard');
             const [autoSwitchedToBracket, setAutoSwitchedToBracket] = useState(false);
             const [authError, setAuthError] = useState(null);
             const [editingPlayerId, setEditingPlayerId] = useState(null);
             const [editingPlayerName, setEditingPlayerName] = useState('');
             const [currentTime, setCurrentTime] = useState(Date.now());
             const [showResetConfirm, setShowResetConfirm] = useState(false);
+            const [lastAction, setLastAction] = useState(null);
             const player1InputRef = useRef(null);
 
             useEffect(() => {
@@ -561,6 +574,7 @@
                 setCaptainsCupMode(false);
                 setPlayers([]);
                 setView('dashboard');
+                setLastAction(null);
 
                 syncToCloud({
                     phase: 'setup', champion: null, matches: [], boards: [], boardNames: [],
@@ -974,13 +988,14 @@
                 }
 
                 let newMatches = matches.map(m => m.id === matchId ? { ...m, status: 'completed', winner: winnerPlayer, boardId: null } : m);
-                
+
                 const { updatedMatches, updatedBoards, newChampion } = processTournamentProgression(newMatches, newBoards, gameMode);
 
                 setMatches(updatedMatches);
                 setBoards(updatedBoards);
                 setScorers(newScorers);
-                
+                setLastAction({ matchId, winnerName: winnerPlayer.name, loserName: loser.name });
+
                 let finalPhase = phase;
                 if (newChampion) {
                     setChampion(newChampion);
@@ -1030,6 +1045,7 @@
                 setScorers(newScorers);
                 setChampion(newChampion || null);
                 setPhase('tournament');
+                setLastAction(prev => prev?.matchId === matchId ? null : prev);
 
                 syncToCloud({
                     matches: updatedMatches,
@@ -1079,6 +1095,21 @@
                 <div className="h-full bg-slate-900 text-slate-100 font-sans flex flex-col overflow-hidden relative">
                     {notification && <Modal title={notification.title} message={notification.message} type={notification.type} onClose={() => setNotification(null)} />}
                     {phase === 'complete' && <Confetti />}
+
+                    {lastAction && (
+                        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[65] w-full max-w-md px-4">
+                            <div className="bg-slate-800 border-2 border-emerald-500 rounded-xl shadow-2xl p-4 flex items-center justify-between gap-4 animate-fade-in">
+                                <div className="text-sm min-w-0">
+                                    <div className="text-slate-400 uppercase text-[10px] font-black tracking-widest">Last Result</div>
+                                    <div className="text-white font-bold truncate">{lastAction.winnerName} <span className="text-slate-500 font-normal">beat</span> {lastAction.loserName}</div>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <Button variant="outline" className="py-2 px-4 text-sm" onClick={() => undoMatch(lastAction.matchId)}>↺ Undo</Button>
+                                    <button onClick={() => setLastAction(null)} className="text-slate-500 hover:text-white text-xl px-1" title="Dismiss">✕</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {showResetConfirm && (
                         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
@@ -1143,8 +1174,9 @@
                                     <button onClick={() => setView('upcoming')} className={`p-2 px-3 rounded-lg font-bold text-sm flex items-center gap-1 whitespace-nowrap ${view === 'upcoming' ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-300'}`}>🔜 Upcoming</button>
                                     <button onClick={() => setView('bracket')} className={`p-2 px-3 rounded-lg font-bold text-sm flex items-center gap-1 whitespace-nowrap ${view === 'bracket' ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-300'}`}>🌳 Bracket</button>
                                     <button onClick={() => setView('projector')} className={`p-2 px-3 rounded-lg font-bold text-sm flex items-center gap-1 whitespace-nowrap ${view === 'projector' ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-300'}`} title="Projector Mode">📺</button>
+                                    <button onClick={() => window.open(`${window.location.origin}${window.location.pathname}?pin=${tournamentId}&view=projector`, '_blank')} className="p-2 px-3 rounded-lg font-bold text-sm bg-slate-700 text-slate-300 hover:bg-slate-600 whitespace-nowrap" title="Open this tournament's Projector view in a new tab">🔗📺</button>
                                     <div className="w-px bg-slate-600 mx-1"></div>
-                                    <button onClick={() => setShowResetConfirm(true)} className="p-2 bg-slate-700 rounded-lg text-white hover:bg-red-600 border border-slate-600">🏠</button>
+                                    <button onClick={() => setShowResetConfirm(true)} className="p-2 bg-slate-700 rounded-lg text-white hover:bg-red-600 border border-slate-600" title="End Tournament (clears all data for everyone)">🏁</button>
                                 </div>
                             )}
                         </div>
@@ -1213,8 +1245,8 @@
                                                     </div>
                                                 </div>
 
-                                                <div className="shrink-0">
-                                                    <label className="block text-slate-300 mb-2 font-bold uppercase text-xs">Game Mode</label>
+                                                <div className="shrink-0 pt-4 border-t border-slate-700/50">
+                                                    <StepHeader n={1}>Game Mode</StepHeader>
                                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                                         <button onClick={() => setGameMode('knockout')} className={`p-4 rounded-lg border-2 font-bold ${gameMode === 'knockout' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-800 border-slate-600 text-slate-400'}`}>🏆 Knockout</button>
                                                         <button onClick={() => setGameMode('seeded48')} className={`p-4 rounded-lg border-2 font-bold ${gameMode === 'seeded48' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-800 border-slate-600 text-slate-400'}`}>⭐ Seeded (48)</button>
@@ -1222,48 +1254,51 @@
                                                     </div>
                                                     {gameMode === 'seeded48' && <p className="text-xs text-emerald-400 italic mt-2">Requires exactly 48 players. Top 16 get Byes. Missing spots automatically fill with BYEs.</p>}
                                                 </div>
-                                                
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 shrink-0">
-                                                    <div className="flex items-center gap-3 py-2 bg-slate-900/50 p-3 rounded-lg border border-slate-700">
-                                                        <button onClick={() => {
-                                                            setIsDoubles(!isDoubles);
-                                                            if (captainsCupMode) {
-                                                                setCaptainsCupMode(false); 
-                                                                syncToCloud({ captainsCupMode: false });
-                                                            }
-                                                        }} className={`w-8 h-8 rounded border-2 flex items-center justify-center shrink-0 ${isDoubles ? 'bg-emerald-500 border-emerald-500' : 'border-slate-500'}`}>
-                                                            {isDoubles && '✅'}
-                                                        </button>
-                                                        <span className="text-white font-bold">Doubles (2v2)</span>
-                                                    </div>
 
-                                                    <div className="flex items-center gap-3 py-2 bg-slate-900/50 p-3 rounded-lg border border-slate-700">
-                                                        <button onClick={() => {
-                                                            const newMode = !captainsCupMode;
-                                                            setCaptainsCupMode(newMode);
-                                                            if (newMode && isDoubles) setIsDoubles(false); 
-                                                            syncToCloud({ captainsCupMode: newMode });
-                                                        }} className={`w-8 h-8 rounded border-2 flex items-center justify-center shrink-0 ${captainsCupMode ? 'bg-yellow-500 border-yellow-500 text-black' : 'border-slate-500'}`}>
-                                                            {captainsCupMode && '🏆'}
-                                                        </button>
-                                                        <span className="text-white font-bold text-sm">Captains Cup Mode</span>
+                                                <div className="shrink-0 pt-4 border-t border-slate-700/50">
+                                                    <StepHeader n={2}>Options</StepHeader>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                        <div className="flex items-center gap-3 py-2 bg-slate-900/50 p-3 rounded-lg border border-slate-700">
+                                                            <button onClick={() => {
+                                                                setIsDoubles(!isDoubles);
+                                                                if (captainsCupMode) {
+                                                                    setCaptainsCupMode(false);
+                                                                    syncToCloud({ captainsCupMode: false });
+                                                                }
+                                                            }} className={`w-8 h-8 rounded border-2 flex items-center justify-center shrink-0 ${isDoubles ? 'bg-emerald-500 border-emerald-500' : 'border-slate-500'}`} title="Toggle Doubles (2v2)">
+                                                                {isDoubles && '✅'}
+                                                            </button>
+                                                            <span className="text-white font-bold">Doubles (2v2)</span>
+                                                        </div>
+
+                                                        <div className="flex items-center gap-3 py-2 bg-slate-900/50 p-3 rounded-lg border border-slate-700">
+                                                            <button onClick={() => {
+                                                                const newMode = !captainsCupMode;
+                                                                setCaptainsCupMode(newMode);
+                                                                if (newMode && isDoubles) setIsDoubles(false);
+                                                                syncToCloud({ captainsCupMode: newMode });
+                                                            }} className={`w-8 h-8 rounded border-2 flex items-center justify-center shrink-0 ${captainsCupMode ? 'bg-yellow-500 border-yellow-500 text-black' : 'border-slate-500'}`} title="Toggle Captains Cup Mode">
+                                                                {captainsCupMode && '🏆'}
+                                                            </button>
+                                                            <span className="text-white font-bold text-sm">Captains Cup Mode</span>
+                                                        </div>
                                                     </div>
                                                 </div>
 
-                                                <div className="shrink-0">
-                                                    <label className="block text-slate-300 mb-2 font-bold uppercase text-xs">Number of Boards</label>
+                                                <div className="shrink-0 pt-4 border-t border-slate-700/50">
+                                                    <StepHeader n={3}>Number of Boards</StepHeader>
                                                     <div className="flex items-center gap-4">
-                                                        <button onClick={() => setBoardCount(Math.max(1, boardCount - 1))} className="p-3 bg-slate-700 rounded-lg text-2xl font-bold w-14 border border-slate-600">-</button>
+                                                        <button onClick={() => setBoardCount(Math.max(1, boardCount - 1))} className="p-3 bg-slate-700 rounded-lg text-2xl font-bold w-14 border border-slate-600" title="Remove a board">-</button>
                                                         <span className="text-3xl font-bold flex-1 text-center text-emerald-400">{boardCount}</span>
-                                                        <button onClick={() => setBoardCount(boardCount + 1)} className="p-3 bg-slate-700 rounded-lg text-2xl font-bold w-14 border border-slate-600">+</button>
+                                                        <button onClick={() => setBoardCount(boardCount + 1)} className="p-3 bg-slate-700 rounded-lg text-2xl font-bold w-14 border border-slate-600" title="Add a board">+</button>
                                                     </div>
                                                 </div>
 
-                                                <div className="flex flex-col flex-1 min-h-0">
-                                                    <label className="block text-slate-300 mb-2 font-bold uppercase text-xs shrink-0">
-                                                        {captainsCupMode ? 'Select Captains' : `Add ${isDoubles ? 'Teams' : 'Players'} (Paste List)`}
-                                                    </label>
-                                                    
+                                                <div className="flex flex-col flex-1 min-h-0 pt-4 border-t border-slate-700/50">
+                                                    <StepHeader n={4} hint={captainsCupMode ? '' : '(paste a list, one per line)'}>
+                                                        {captainsCupMode ? 'Select Captains' : `Add ${isDoubles ? 'Teams' : 'Players'}`}
+                                                    </StepHeader>
+
                                                     {captainsCupMode ? (
                                                         <div className="flex-1 overflow-y-auto bg-slate-900/50 p-2 rounded-lg border border-slate-700 pr-2">
                                                             <div className="grid grid-cols-2 gap-2">
@@ -1298,7 +1333,7 @@
                                                                 rows="1"
                                                             />
                                                             {isDoubles && <textarea value={playerInput2} onChange={(e) => setPlayerInput2(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && playerInput && (e.preventDefault(), addPlayer())} placeholder="P2..." className="flex-1 min-w-0 bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-lg text-white resize-none h-[52px]" rows="1" />}
-                                                            <button onClick={addPlayer} className="bg-emerald-600 hover:bg-emerald-500 px-5 rounded-lg font-bold text-xl text-white border border-emerald-500 h-[52px] w-full sm:w-auto shrink-0">+</button>
+                                                            <button onClick={addPlayer} className="bg-emerald-600 hover:bg-emerald-500 px-5 rounded-lg font-bold text-xl text-white border border-emerald-500 h-[52px] w-full sm:w-auto shrink-0" title={isDoubles ? "Add team" : "Add player(s)"}>+</button>
                                                         </div>
                                                     )}
                                                 </div>
@@ -1318,8 +1353,8 @@
                                                                         className="flex-1 bg-slate-900 border border-emerald-500 rounded px-2 py-1 text-white min-w-0"
                                                                         autoFocus
                                                                     />
-                                                                    <button onClick={saveEditedPlayer} className="text-emerald-400 hover:text-emerald-300 px-2 font-bold shrink-0">✓</button>
-                                                                    <button onClick={() => setEditingPlayerId(null)} className="text-slate-400 hover:text-slate-300 px-2 font-bold shrink-0">✕</button>
+                                                                    <button onClick={saveEditedPlayer} className="text-emerald-400 hover:text-emerald-300 px-2 font-bold shrink-0" title="Save name">✓</button>
+                                                                    <button onClick={() => setEditingPlayerId(null)} className="text-slate-400 hover:text-slate-300 px-2 font-bold shrink-0" title="Cancel">✕</button>
                                                                 </div>
                                                             ) : (
                                                                 <>
@@ -1357,7 +1392,7 @@
                                                         -
                                                     </button>
                                                     <span className="text-xl font-bold px-4 text-white">{boards.length}</span>
-                                                    <button onClick={() => adjustBoardCount(true)} className="w-10 h-10 bg-slate-700 rounded text-slate-400 text-xl font-bold">+</button>
+                                                    <button onClick={() => adjustBoardCount(true)} className="w-10 h-10 bg-slate-700 rounded text-slate-400 text-xl font-bold" title="Add a board">+</button>
                                                 </div>
                                             </div>
                                             <div className="flex flex-wrap justify-center gap-6">
