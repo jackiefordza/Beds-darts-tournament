@@ -1,0 +1,10 @@
+[build]
+  publish = "."
+
+# This is a single self-contained index.html with no build step and no
+# hashed/versioned filenames, so browsers/CDNs must always revalidate it -
+# otherwise a redeploy can silently not reach users on a cached copy.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"

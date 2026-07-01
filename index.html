@@ -5,11 +5,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Darts Tournament Manager</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 font-size=%2290%22>🎯</svg>">
+
+    <link rel="preconnect" href="https://unpkg.com">
+    <link rel="preconnect" href="https://www.gstatic.com">
+    <link rel="preconnect" href="https://firestore.googleapis.com">
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
 
     <style>
         ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -86,6 +91,8 @@
 
         // Expose to window for React to use
         window.fb = { db, auth, doc, setDoc, onSnapshot, appId, signInAnonymously, signInWithCustomToken, onAuthStateChanged };
+        // Let the React app know Firebase is ready instead of guessing with a fixed delay
+        window.dispatchEvent(new Event('fb-ready'));
     </script>
 
     <script type="text/babel">
@@ -122,6 +129,22 @@
             while (count < n) count *= 2;
             return count;
         };
+
+        // Resolves once the Firebase module script has set window.fb, instead of
+        // guessing with a fixed setTimeout (which can lose the race on slow connections).
+        const getFirebase = () => new Promise((resolve, reject) => {
+            if (window.fb) { resolve(window.fb); return; }
+            let timeoutId;
+            const onReady = () => {
+                clearTimeout(timeoutId);
+                resolve(window.fb);
+            };
+            window.addEventListener('fb-ready', onReady, { once: true });
+            timeoutId = setTimeout(() => {
+                window.removeEventListener('fb-ready', onReady);
+                reject(new Error('Firebase failed to load. Please check your internet connection.'));
+            }, 8000);
+        });
 
         // --- TOURNAMENT PROGRESSION LOGIC ---
         const processTournamentProgression = (currentMatches, currentBoards, currentGameMode) => {
@@ -424,14 +447,13 @@
 
             // --- 1. FIREBASE AUTH SETUP ---
             useEffect(() => {
-                const timer = setTimeout(() => {
-                    if (!window.fb) {
-                        setAuthError("Firebase failed to load. Please check your internet connection.");
-                        return;
-                    }
-                    
-                    const { auth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } = window.fb;
-                    
+                let cancelled = false;
+                let unsubscribe = () => {};
+
+                getFirebase().then((fb) => {
+                    if (cancelled) return;
+                    const { auth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } = fb;
+
                     const initAuth = async () => {
                         try {
                             if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -441,21 +463,22 @@
                             }
                         } catch (error) {
                             console.error("Auth Error:", error);
-                            setNotification({ 
-                                title: 'Login Failed', 
-                                message: `Failed to connect to Firebase: ${error.message}. Make sure 'Anonymous Auth' is enabled in your Firebase Console!`, 
-                                type: 'error' 
+                            setNotification({
+                                title: 'Login Failed',
+                                message: `Failed to connect to Firebase: ${error.message}. Make sure 'Anonymous Auth' is enabled in your Firebase Console!`,
+                                type: 'error'
                             });
                             setAuthError(error.message);
                         }
                     };
-                    
-                    initAuth();
-                    const unsubscribe = onAuthStateChanged(auth, setUser);
-                    return () => unsubscribe();
-                }, 100);
 
-                return () => clearTimeout(timer);
+                    initAuth();
+                    unsubscribe = onAuthStateChanged(auth, setUser);
+                }).catch((error) => {
+                    if (!cancelled) setAuthError(error.message);
+                });
+
+                return () => { cancelled = true; unsubscribe(); };
             }, []);
 
             // --- 2. FIRESTORE REAL-TIME SYNC ---
