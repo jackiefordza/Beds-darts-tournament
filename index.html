@@ -342,6 +342,10 @@
             // More boards need to share the same fixed screen height, so shrink text,
             // padding and gaps as count grows instead of letting rows overflow the page.
             const fontClass = count <= 2 ? 'text-7xl' : count <= 4 ? 'text-5xl' : count <= 6 ? 'text-4xl' : count <= 9 ? 'text-3xl' : count <= 16 ? 'text-2xl' : 'text-xl';
+            // Above 6 boards the grid grows to 3+ rows, leaving too little card height for
+            // a name that wraps to 2 lines - truncate to 1 line there so neither player's
+            // name can be squeezed out entirely by a long opponent's name.
+            const nameWrapClass = count <= 6 ? 'break-words' : 'truncate';
             const cardPadding = count <= 4 ? 'p-8' : count <= 9 ? 'p-4' : 'p-2';
             const gapClass = count <= 4 ? 'gap-6' : count <= 9 ? 'gap-3' : 'gap-2';
             const roundedClass = count <= 4 ? 'rounded-[2rem]' : 'rounded-xl';
@@ -375,11 +379,11 @@
 
                                     {match ? (
                                         <div className={`flex flex-col items-center ${innerGap} w-full flex-1 min-h-0 z-0 overflow-hidden`}>
-                                            <div className={`${fontClass} font-black text-white text-center uppercase break-words w-full shrink-0`}>
+                                            <div className={`${fontClass} font-black text-white text-center uppercase ${nameWrapClass} w-full shrink-0`}>
                                                 {match.p1?.name || 'TBD'}
                                             </div>
                                             <div className={`text-emerald-500 font-black ${vsClass} italic opacity-40 shrink-0`}>VS</div>
-                                            <div className={`${fontClass} font-black text-white text-center uppercase break-words w-full shrink-0`}>
+                                            <div className={`${fontClass} font-black text-white text-center uppercase ${nameWrapClass} w-full shrink-0`}>
                                                 {match.p2?.name || 'TBD'}
                                             </div>
 
