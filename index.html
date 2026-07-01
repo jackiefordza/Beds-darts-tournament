@@ -113,6 +113,14 @@
             "Vikki Sulman", "Will Monk"
         ];
 
+        const SETUP_STEPS = [
+            { n: 1, label: 'Room' },
+            { n: 2, label: 'Format' },
+            { n: 3, label: 'Options' },
+            { n: 4, label: 'Boards' },
+            { n: 5, label: 'Players' },
+        ];
+
         // --- UTILITY FUNCTIONS ---
         const shuffleArray = (array) => {
             const newArray = [...array];
@@ -230,14 +238,6 @@
         const Card = ({ children, className = "" }) => (
             <div className={`bg-slate-800 border border-slate-600 rounded-xl shadow-lg overflow-hidden ${className}`}>
                 {children}
-            </div>
-        );
-
-        const StepHeader = ({ n, children, hint }) => (
-            <div className="flex items-center gap-2 mb-2">
-                <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-[11px] font-black flex items-center justify-center shrink-0">{n}</span>
-                <label className="text-slate-300 font-bold uppercase text-xs">{children}</label>
-                {hint && <span className="text-slate-500 text-[10px] normal-case font-normal italic">{hint}</span>}
             </div>
         );
 
@@ -450,7 +450,13 @@
             const [currentTime, setCurrentTime] = useState(Date.now());
             const [showResetConfirm, setShowResetConfirm] = useState(false);
             const [lastAction, setLastAction] = useState(null);
+            const [setupStep, setSetupStep] = useState(1);
             const player1InputRef = useRef(null);
+
+            // Switching rooms means setting up a different tournament from scratch
+            useEffect(() => {
+                setSetupStep(1);
+            }, [tournamentId]);
 
             useEffect(() => {
                 if (phase !== 'tournament' || view !== 'dashboard') return;
@@ -575,6 +581,7 @@
                 setPlayers([]);
                 setView('dashboard');
                 setLastAction(null);
+                setSetupStep(1);
 
                 syncToCloud({
                     phase: 'setup', champion: null, matches: [], boards: [], boardNames: [],
@@ -1188,190 +1195,238 @@
                         ) : (
                             <>
                                 {phase === 'setup' && (
-                                    <div className="max-w-6xl mx-auto p-4 h-full flex flex-col justify-center">
+                                    <div className="max-w-3xl mx-auto p-4 h-full flex flex-col justify-center">
                                         <header className="text-center py-4 shrink-0">
                                             <h1 className="text-4xl font-bold text-emerald-400">🎯 Darts Planner</h1>
                                             <div className="text-slate-500 uppercase tracking-widest text-[10px] mt-2 font-bold flex items-center justify-center gap-2">
                                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Real-Time Sync Enabled
                                             </div>
                                         </header>
-                                        <Card className="p-6 flex-1 overflow-hidden flex flex-col md:flex-row gap-6 bg-slate-800/90 backdrop-blur">
-                                            <div className="flex-1 flex flex-col gap-6 min-h-0 pr-2 overflow-y-auto">
-                                                
-                                                {/* NEW TOURNAMENT ID FIELD */}
-                                                <div className="flex flex-col xl:flex-row gap-4 shrink-0">
-                                                    <div className="flex-1 bg-emerald-900/20 border-2 border-emerald-500/50 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-inner">
-                                                        <div>
-                                                            <label className="block text-emerald-400/80 mb-1 font-black uppercase text-[10px] tracking-widest">Room PIN</label>
-                                                            <div className="text-5xl font-black text-emerald-400 tracking-widest">{tournamentId}</div>
-                                                        </div>
-                                                        <div className="w-full sm:w-auto sm:text-right">
-                                                            <label className="block text-slate-400 mb-1 font-black uppercase text-[10px] tracking-widest">Event Name</label>
-                                                            <input
-                                                                type="text"
-                                                                value={tournamentName}
-                                                                onChange={(e) => setTournamentName(e.target.value)}
-                                                                onBlur={(e) => syncToCloud({ tournamentName: e.target.value })}
-                                                                className="bg-slate-900/50 border border-slate-600 rounded-lg px-3 py-2 text-white font-bold w-full sm:w-48 sm:text-right focus:border-emerald-500 focus:outline-none transition-colors"
-                                                                placeholder="e.g. Main Event"
-                                                            />
-                                                        </div>
-                                                    </div>
 
-                                                    <div className="xl:w-1/3 bg-blue-900/20 border-2 border-blue-500/30 rounded-xl p-4 shadow-inner flex flex-col justify-center">
-                                                        <label className="block text-blue-400/80 mb-2 font-black uppercase text-[10px] tracking-widest">Join Existing Room</label>
-                                                        <div className="flex gap-2 w-full">
-                                                            <input
-                                                                type="text"
-                                                                value={joinPin}
-                                                                onChange={(e) => setJoinPin(e.target.value)}
-                                                                placeholder="PIN..."
-                                                                className="flex-1 min-w-0 bg-slate-900 border border-blue-500/50 rounded-lg px-3 py-2 text-lg text-white font-bold tracking-widest text-center focus:border-blue-400 focus:outline-none"
-                                                                maxLength="4"
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === 'Enter' && joinPin.length >= 3) {
-                                                                        setTournamentId(joinPin);
-                                                                        setJoinPin('');
-                                                                    }
-                                                                }}
-                                                            />
-                                                            <Button variant="primary" className="bg-blue-600 hover:bg-blue-500 border-blue-500 py-2 px-4 shadow-blue-900/20 shrink-0" onClick={() => {
-                                                                if(joinPin.length >= 3) {
-                                                                    setTournamentId(joinPin);
-                                                                    setJoinPin('');
-                                                                }
-                                                            }}>Join</Button>
-                                                        </div>
-                                                    </div>
+                                        <div className="flex items-center justify-center mb-4 shrink-0">
+                                            {SETUP_STEPS.map((s, i) => (
+                                                <div key={s.n} className="flex items-center">
+                                                    <button
+                                                        onClick={() => s.n < setupStep && setSetupStep(s.n)}
+                                                        disabled={s.n >= setupStep}
+                                                        className="flex flex-col items-center gap-1 px-1"
+                                                        title={s.label}
+                                                    >
+                                                        <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black transition-colors ${s.n === setupStep ? 'bg-emerald-500 text-white ring-4 ring-emerald-500/20' : s.n < setupStep ? 'bg-emerald-700 text-emerald-200 cursor-pointer' : 'bg-slate-700 text-slate-500'}`}>
+                                                            {s.n < setupStep ? '✓' : s.n}
+                                                        </span>
+                                                        <span className={`text-[9px] uppercase font-bold tracking-widest hidden sm:block ${s.n === setupStep ? 'text-emerald-400' : 'text-slate-500'}`}>{s.label}</span>
+                                                    </button>
+                                                    {i < SETUP_STEPS.length - 1 && <div className={`w-6 sm:w-10 h-0.5 mb-4 sm:mb-3 ${s.n < setupStep ? 'bg-emerald-600' : 'bg-slate-700'}`}></div>}
                                                 </div>
+                                            ))}
+                                        </div>
 
-                                                <div className="shrink-0 pt-4 border-t border-slate-700/50">
-                                                    <StepHeader n={1}>Game Mode</StepHeader>
-                                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                                        <button onClick={() => setGameMode('knockout')} className={`p-4 rounded-lg border-2 font-bold ${gameMode === 'knockout' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-800 border-slate-600 text-slate-400'}`}>🏆 Knockout</button>
-                                                        <button onClick={() => setGameMode('seeded48')} className={`p-4 rounded-lg border-2 font-bold ${gameMode === 'seeded48' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-800 border-slate-600 text-slate-400'}`}>⭐ Seeded (48)</button>
-                                                        <button onClick={() => setGameMode('league')} className={`p-4 rounded-lg border-2 font-bold ${gameMode === 'league' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-800 border-slate-600 text-slate-400'}`}>📊 League</button>
-                                                    </div>
-                                                    {gameMode === 'seeded48' && <p className="text-xs text-emerald-400 italic mt-2">Requires exactly 48 players. Top 16 get Byes. Missing spots automatically fill with BYEs.</p>}
-                                                </div>
+                                        <Card className="p-6 flex-1 min-h-0 overflow-y-auto flex flex-col bg-slate-800/90 backdrop-blur">
+                                            <div className="flex-1 flex flex-col min-h-0">
 
-                                                <div className="shrink-0 pt-4 border-t border-slate-700/50">
-                                                    <StepHeader n={2}>Options</StepHeader>
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                        <div className="flex items-center gap-3 py-2 bg-slate-900/50 p-3 rounded-lg border border-slate-700">
-                                                            <button onClick={() => {
-                                                                setIsDoubles(!isDoubles);
-                                                                if (captainsCupMode) {
-                                                                    setCaptainsCupMode(false);
-                                                                    syncToCloud({ captainsCupMode: false });
-                                                                }
-                                                            }} className={`w-8 h-8 rounded border-2 flex items-center justify-center shrink-0 ${isDoubles ? 'bg-emerald-500 border-emerald-500' : 'border-slate-500'}`} title="Toggle Doubles (2v2)">
-                                                                {isDoubles && '✅'}
-                                                            </button>
-                                                            <span className="text-white font-bold">Doubles (2v2)</span>
-                                                        </div>
+                                                {setupStep === 1 && (
+                                                    <div>
+                                                        <h2 className="text-white font-black text-lg mb-4">1. Room &amp; Event</h2>
+                                                        <div className="flex flex-col xl:flex-row gap-4">
+                                                            <div className="flex-1 bg-emerald-900/20 border-2 border-emerald-500/50 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-inner">
+                                                                <div>
+                                                                    <label className="block text-emerald-400/80 mb-1 font-black uppercase text-[10px] tracking-widest">Room PIN</label>
+                                                                    <div className="text-5xl font-black text-emerald-400 tracking-widest">{tournamentId}</div>
+                                                                </div>
+                                                                <div className="w-full sm:w-auto sm:text-right">
+                                                                    <label className="block text-slate-400 mb-1 font-black uppercase text-[10px] tracking-widest">Event Name</label>
+                                                                    <input
+                                                                        type="text"
+                                                                        value={tournamentName}
+                                                                        onChange={(e) => setTournamentName(e.target.value)}
+                                                                        onBlur={(e) => syncToCloud({ tournamentName: e.target.value })}
+                                                                        className="bg-slate-900/50 border border-slate-600 rounded-lg px-3 py-2 text-white font-bold w-full sm:w-48 sm:text-right focus:border-emerald-500 focus:outline-none transition-colors"
+                                                                        placeholder="e.g. Main Event"
+                                                                    />
+                                                                </div>
+                                                            </div>
 
-                                                        <div className="flex items-center gap-3 py-2 bg-slate-900/50 p-3 rounded-lg border border-slate-700">
-                                                            <button onClick={() => {
-                                                                const newMode = !captainsCupMode;
-                                                                setCaptainsCupMode(newMode);
-                                                                if (newMode && isDoubles) setIsDoubles(false);
-                                                                syncToCloud({ captainsCupMode: newMode });
-                                                            }} className={`w-8 h-8 rounded border-2 flex items-center justify-center shrink-0 ${captainsCupMode ? 'bg-yellow-500 border-yellow-500 text-black' : 'border-slate-500'}`} title="Toggle Captains Cup Mode">
-                                                                {captainsCupMode && '🏆'}
-                                                            </button>
-                                                            <span className="text-white font-bold text-sm">Captains Cup Mode</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div className="shrink-0 pt-4 border-t border-slate-700/50">
-                                                    <StepHeader n={3}>Number of Boards</StepHeader>
-                                                    <div className="flex items-center gap-4">
-                                                        <button onClick={() => setBoardCount(Math.max(1, boardCount - 1))} className="p-3 bg-slate-700 rounded-lg text-2xl font-bold w-14 border border-slate-600" title="Remove a board">-</button>
-                                                        <span className="text-3xl font-bold flex-1 text-center text-emerald-400">{boardCount}</span>
-                                                        <button onClick={() => setBoardCount(boardCount + 1)} className="p-3 bg-slate-700 rounded-lg text-2xl font-bold w-14 border border-slate-600" title="Add a board">+</button>
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex flex-col flex-1 min-h-0 pt-4 border-t border-slate-700/50">
-                                                    <StepHeader n={4} hint={captainsCupMode ? '' : '(paste a list, one per line)'}>
-                                                        {captainsCupMode ? 'Select Captains' : `Add ${isDoubles ? 'Teams' : 'Players'}`}
-                                                    </StepHeader>
-
-                                                    {captainsCupMode ? (
-                                                        <div className="flex-1 overflow-y-auto bg-slate-900/50 p-2 rounded-lg border border-slate-700 pr-2">
-                                                            <div className="grid grid-cols-2 gap-2">
-                                                                {PREDEFINED_CAPTAINS.map(name => {
-                                                                    const isSelected = players.some(p => p.name === name);
-                                                                    return (
-                                                                        <button 
-                                                                            key={name}
-                                                                            onClick={() => toggleCaptain(name)} 
-                                                                            className={`p-3 rounded-lg border text-sm font-bold text-left truncate transition-colors ${isSelected ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-800 border-slate-600 text-slate-400 hover:bg-slate-700'}`}
-                                                                        >
-                                                                            {isSelected ? '✓ ' : '+ '}{name}
-                                                                        </button>
-                                                                    );
-                                                                })}
+                                                            <div className="xl:w-1/3 bg-blue-900/20 border-2 border-blue-500/30 rounded-xl p-4 shadow-inner flex flex-col justify-center">
+                                                                <label className="block text-blue-400/80 mb-2 font-black uppercase text-[10px] tracking-widest">Join Existing Room</label>
+                                                                <div className="flex gap-2 w-full">
+                                                                    <input
+                                                                        type="text"
+                                                                        value={joinPin}
+                                                                        onChange={(e) => setJoinPin(e.target.value)}
+                                                                        placeholder="PIN..."
+                                                                        className="flex-1 min-w-0 bg-slate-900 border border-blue-500/50 rounded-lg px-3 py-2 text-lg text-white font-bold tracking-widest text-center focus:border-blue-400 focus:outline-none"
+                                                                        maxLength="4"
+                                                                        onKeyDown={(e) => {
+                                                                            if (e.key === 'Enter' && joinPin.length >= 3) {
+                                                                                setTournamentId(joinPin);
+                                                                                setJoinPin('');
+                                                                            }
+                                                                        }}
+                                                                    />
+                                                                    <Button variant="primary" className="bg-blue-600 hover:bg-blue-500 border-blue-500 py-2 px-4 shadow-blue-900/20 shrink-0" onClick={() => {
+                                                                        if(joinPin.length >= 3) {
+                                                                            setTournamentId(joinPin);
+                                                                            setJoinPin('');
+                                                                        }
+                                                                    }}>Join</Button>
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    ) : (
-                                                        <div className="flex flex-col sm:flex-row gap-2 shrink-0">
-                                                            <textarea 
-                                                                ref={player1InputRef} 
-                                                                value={playerInput} 
-                                                                onChange={(e) => setPlayerInput(e.target.value)} 
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === 'Enter' && !e.shiftKey) {
-                                                                        e.preventDefault();
-                                                                        if (!isDoubles || playerInput2) addPlayer();
+                                                    </div>
+                                                )}
+
+                                                {setupStep === 2 && (
+                                                    <div>
+                                                        <h2 className="text-white font-black text-lg mb-4">2. Choose a Game Mode</h2>
+                                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                            <button onClick={() => setGameMode('knockout')} className={`p-4 rounded-lg border-2 font-bold ${gameMode === 'knockout' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-800 border-slate-600 text-slate-400'}`}>🏆 Knockout</button>
+                                                            <button onClick={() => setGameMode('seeded48')} className={`p-4 rounded-lg border-2 font-bold ${gameMode === 'seeded48' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-800 border-slate-600 text-slate-400'}`}>⭐ Seeded (48)</button>
+                                                            <button onClick={() => setGameMode('league')} className={`p-4 rounded-lg border-2 font-bold ${gameMode === 'league' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-800 border-slate-600 text-slate-400'}`}>📊 League</button>
+                                                        </div>
+                                                        {gameMode === 'seeded48' && <p className="text-xs text-emerald-400 italic mt-2">Requires exactly 48 players. Top 16 get Byes. Missing spots automatically fill with BYEs.</p>}
+                                                    </div>
+                                                )}
+
+                                                {setupStep === 3 && (
+                                                    <div>
+                                                        <h2 className="text-white font-black text-lg mb-4">3. Match Options</h2>
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                            <div className="flex items-center gap-3 py-2 bg-slate-900/50 p-3 rounded-lg border border-slate-700">
+                                                                <button onClick={() => {
+                                                                    setIsDoubles(!isDoubles);
+                                                                    if (captainsCupMode) {
+                                                                        setCaptainsCupMode(false);
+                                                                        syncToCloud({ captainsCupMode: false });
                                                                     }
-                                                                }} 
-                                                                placeholder={isDoubles ? "P1..." : "Type a name or paste a list..."} 
-                                                                className="flex-1 min-w-0 bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-lg text-white resize-none h-[52px]" 
-                                                                rows="1"
-                                                            />
-                                                            {isDoubles && <textarea value={playerInput2} onChange={(e) => setPlayerInput2(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && playerInput && (e.preventDefault(), addPlayer())} placeholder="P2..." className="flex-1 min-w-0 bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-lg text-white resize-none h-[52px]" rows="1" />}
-                                                            <button onClick={addPlayer} className="bg-emerald-600 hover:bg-emerald-500 px-5 rounded-lg font-bold text-xl text-white border border-emerald-500 h-[52px] w-full sm:w-auto shrink-0" title={isDoubles ? "Add team" : "Add player(s)"}>+</button>
+                                                                }} className={`w-8 h-8 rounded border-2 flex items-center justify-center shrink-0 ${isDoubles ? 'bg-emerald-500 border-emerald-500' : 'border-slate-500'}`} title="Toggle Doubles (2v2)">
+                                                                    {isDoubles && '✅'}
+                                                                </button>
+                                                                <span className="text-white font-bold">Doubles (2v2)</span>
+                                                            </div>
+
+                                                            <div className="flex items-center gap-3 py-2 bg-slate-900/50 p-3 rounded-lg border border-slate-700">
+                                                                <button onClick={() => {
+                                                                    const newMode = !captainsCupMode;
+                                                                    setCaptainsCupMode(newMode);
+                                                                    if (newMode && isDoubles) setIsDoubles(false);
+                                                                    syncToCloud({ captainsCupMode: newMode });
+                                                                }} className={`w-8 h-8 rounded border-2 flex items-center justify-center shrink-0 ${captainsCupMode ? 'bg-yellow-500 border-yellow-500 text-black' : 'border-slate-500'}`} title="Toggle Captains Cup Mode">
+                                                                    {captainsCupMode && '🏆'}
+                                                                </button>
+                                                                <span className="text-white font-bold text-sm">Captains Cup Mode</span>
+                                                            </div>
                                                         </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div className="flex-1 flex flex-col min-h-0 md:border-l border-slate-700 md:pl-6 pt-4 md:pt-0">
-                                                <label className="block text-slate-300 mb-2 font-bold uppercase text-xs shrink-0">Registered ({players.length})</label>
-                                                <div className="flex-1 overflow-y-auto space-y-2 bg-slate-900/50 p-2 rounded-lg border border-slate-700">
-                                                    {players.map((p, index) => (
-                                                        <div key={p.id} className="flex justify-between items-center bg-slate-800 p-3 rounded border border-slate-600">
-                                                            {editingPlayerId === p.id ? (
-                                                                <div className="flex-1 flex gap-2 mr-2">
-                                                                    <input 
-                                                                        type="text" 
-                                                                        value={editingPlayerName} 
-                                                                        onChange={(e) => setEditingPlayerName(e.target.value)}
-                                                                        onKeyDown={(e) => e.key === 'Enter' && saveEditedPlayer()}
-                                                                        className="flex-1 bg-slate-900 border border-emerald-500 rounded px-2 py-1 text-white min-w-0"
-                                                                        autoFocus
-                                                                    />
-                                                                    <button onClick={saveEditedPlayer} className="text-emerald-400 hover:text-emerald-300 px-2 font-bold shrink-0" title="Save name">✓</button>
-                                                                    <button onClick={() => setEditingPlayerId(null)} className="text-slate-400 hover:text-slate-300 px-2 font-bold shrink-0" title="Cancel">✕</button>
-                                                                </div>
-                                                            ) : (
-                                                                <>
-                                                                    <span className="font-bold text-slate-200 truncate">
-                                                                        {gameMode === 'seeded48' && <span className="text-emerald-500 mr-2 opacity-80">#{index + 1}</span>}
-                                                                        {p.name}
-                                                                    </span>
-                                                                    <div className="flex items-center gap-1 shrink-0">
-                                                                        <button onClick={() => startEditingPlayer(p)} className="text-slate-400 hover:text-blue-400 px-2 py-1" title="Edit Name">✏️</button>
-                                                                        <button onClick={() => removePlayer(p.id)} className="text-red-400 hover:text-red-300 px-2 py-1 text-xl" title="Remove Player">×</button>
+                                                    </div>
+                                                )}
+
+                                                {setupStep === 4 && (
+                                                    <div>
+                                                        <h2 className="text-white font-black text-lg mb-4">4. Number of Boards</h2>
+                                                        <div className="flex items-center gap-4 max-w-xs">
+                                                            <button onClick={() => setBoardCount(Math.max(1, boardCount - 1))} className="p-3 bg-slate-700 rounded-lg text-2xl font-bold w-14 border border-slate-600" title="Remove a board">-</button>
+                                                            <span className="text-3xl font-bold flex-1 text-center text-emerald-400">{boardCount}</span>
+                                                            <button onClick={() => setBoardCount(boardCount + 1)} className="p-3 bg-slate-700 rounded-lg text-2xl font-bold w-14 border border-slate-600" title="Add a board">+</button>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {setupStep === 5 && (
+                                                    <div className="flex-1 flex flex-col min-h-0">
+                                                        <h2 className="text-white font-black text-lg mb-4 shrink-0">5. Add {captainsCupMode ? 'Captains' : (isDoubles ? 'Teams' : 'Players')}</h2>
+                                                        <div className="flex-1 flex flex-col md:flex-row gap-6 min-h-0">
+                                                            <div className="flex-1 flex flex-col min-h-0">
+                                                                <label className="block text-slate-300 mb-2 font-bold uppercase text-xs shrink-0">
+                                                                    {captainsCupMode ? 'Select Captains' : `Add ${isDoubles ? 'Teams' : 'Players'}`}
+                                                                    {!captainsCupMode && <span className="text-slate-500 text-[10px] normal-case font-normal italic ml-2">(paste a list, one per line)</span>}
+                                                                </label>
+
+                                                                {captainsCupMode ? (
+                                                                    <div className="flex-1 overflow-y-auto bg-slate-900/50 p-2 rounded-lg border border-slate-700 pr-2 min-h-[160px]">
+                                                                        <div className="grid grid-cols-2 gap-2">
+                                                                            {PREDEFINED_CAPTAINS.map(name => {
+                                                                                const isSelected = players.some(p => p.name === name);
+                                                                                return (
+                                                                                    <button
+                                                                                        key={name}
+                                                                                        onClick={() => toggleCaptain(name)}
+                                                                                        className={`p-3 rounded-lg border text-sm font-bold text-left truncate transition-colors ${isSelected ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-800 border-slate-600 text-slate-400 hover:bg-slate-700'}`}
+                                                                                    >
+                                                                                        {isSelected ? '✓ ' : '+ '}{name}
+                                                                                    </button>
+                                                                                );
+                                                                            })}
+                                                                        </div>
                                                                     </div>
-                                                                </>
-                                                            )}
+                                                                ) : (
+                                                                    <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+                                                                        <textarea
+                                                                            ref={player1InputRef}
+                                                                            value={playerInput}
+                                                                            onChange={(e) => setPlayerInput(e.target.value)}
+                                                                            onKeyDown={(e) => {
+                                                                                if (e.key === 'Enter' && !e.shiftKey) {
+                                                                                    e.preventDefault();
+                                                                                    if (!isDoubles || playerInput2) addPlayer();
+                                                                                }
+                                                                            }}
+                                                                            placeholder={isDoubles ? "P1..." : "Type a name or paste a list..."}
+                                                                            className="flex-1 min-w-0 bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-lg text-white resize-none h-[52px]"
+                                                                            rows="1"
+                                                                        />
+                                                                        {isDoubles && <textarea value={playerInput2} onChange={(e) => setPlayerInput2(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && playerInput && (e.preventDefault(), addPlayer())} placeholder="P2..." className="flex-1 min-w-0 bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-lg text-white resize-none h-[52px]" rows="1" />}
+                                                                        <button onClick={addPlayer} className="bg-emerald-600 hover:bg-emerald-500 px-5 rounded-lg font-bold text-xl text-white border border-emerald-500 h-[52px] w-full sm:w-auto shrink-0" title={isDoubles ? "Add team" : "Add player(s)"}>+</button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex-1 flex flex-col min-h-0 md:border-l border-slate-700 md:pl-6">
+                                                                <label className="block text-slate-300 mb-2 font-bold uppercase text-xs shrink-0">Registered ({players.length})</label>
+                                                                <div className="flex-1 overflow-y-auto space-y-2 bg-slate-900/50 p-2 rounded-lg border border-slate-700 min-h-[160px]">
+                                                                    {players.map((p, index) => (
+                                                                        <div key={p.id} className="flex justify-between items-center bg-slate-800 p-3 rounded border border-slate-600">
+                                                                            {editingPlayerId === p.id ? (
+                                                                                <div className="flex-1 flex gap-2 mr-2">
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        value={editingPlayerName}
+                                                                                        onChange={(e) => setEditingPlayerName(e.target.value)}
+                                                                                        onKeyDown={(e) => e.key === 'Enter' && saveEditedPlayer()}
+                                                                                        className="flex-1 bg-slate-900 border border-emerald-500 rounded px-2 py-1 text-white min-w-0"
+                                                                                        autoFocus
+                                                                                    />
+                                                                                    <button onClick={saveEditedPlayer} className="text-emerald-400 hover:text-emerald-300 px-2 font-bold shrink-0" title="Save name">✓</button>
+                                                                                    <button onClick={() => setEditingPlayerId(null)} className="text-slate-400 hover:text-slate-300 px-2 font-bold shrink-0" title="Cancel">✕</button>
+                                                                                </div>
+                                                                            ) : (
+                                                                                <>
+                                                                                    <span className="font-bold text-slate-200 truncate">
+                                                                                        {gameMode === 'seeded48' && <span className="text-emerald-500 mr-2 opacity-80">#{index + 1}</span>}
+                                                                                        {p.name}
+                                                                                    </span>
+                                                                                    <div className="flex items-center gap-1 shrink-0">
+                                                                                        <button onClick={() => startEditingPlayer(p)} className="text-slate-400 hover:text-blue-400 px-2 py-1" title="Edit Name">✏️</button>
+                                                                                        <button onClick={() => removePlayer(p.id)} className="text-red-400 hover:text-red-300 px-2 py-1 text-xl" title="Remove Player">×</button>
+                                                                                    </div>
+                                                                                </>
+                                                                            )}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                                <Button onClick={startTournament} disabled={players.length < 2 || (gameMode==='seeded48' && players.length === 0)} className="w-full mt-4 text-xl py-4 shrink-0">Start Tournament 🎯</Button>
+                                                            </div>
                                                         </div>
-                                                    ))}
-                                                </div>
-                                                <Button onClick={startTournament} disabled={players.length < 2 || (gameMode==='seeded48' && players.length === 0)} className="w-full mt-4 text-xl py-4 shrink-0">Start Tournament 🎯</Button>
+                                                    </div>
+                                                )}
+
+                                            </div>
+
+                                            <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-700 shrink-0">
+                                                {setupStep > 1 ? (
+                                                    <Button variant="secondary" onClick={() => setSetupStep(s => s - 1)} className="px-6">← Back</Button>
+                                                ) : <div />}
+                                                {setupStep < 5 && (
+                                                    <Button onClick={() => setSetupStep(s => s + 1)} className="px-8">Next →</Button>
+                                                )}
                                             </div>
                                         </Card>
                                     </div>
