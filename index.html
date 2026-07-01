@@ -336,19 +336,31 @@
             let gridClass = "grid-cols-1";
             if (count > 1) gridClass = "grid-cols-2";
             if (count > 4) gridClass = "grid-cols-3";
-            if (count > 8) gridClass = "grid-cols-4";
+            if (count > 9) gridClass = "grid-cols-4";
+            if (count > 16) gridClass = "grid-cols-5";
 
-            const fontClass = count <= 2 ? 'text-7xl' : count <= 4 ? 'text-5xl' : 'text-3xl';
+            // More boards need to share the same fixed screen height, so shrink text,
+            // padding and gaps as count grows instead of letting rows overflow the page.
+            const fontClass = count <= 2 ? 'text-7xl' : count <= 4 ? 'text-5xl' : count <= 6 ? 'text-4xl' : count <= 9 ? 'text-3xl' : count <= 16 ? 'text-2xl' : 'text-xl';
+            const cardPadding = count <= 4 ? 'p-8' : count <= 9 ? 'p-4' : 'p-2';
+            const gapClass = count <= 4 ? 'gap-6' : count <= 9 ? 'gap-3' : 'gap-2';
+            const roundedClass = count <= 4 ? 'rounded-[2rem]' : 'rounded-xl';
+            const labelClass = count <= 4 ? 'text-3xl mb-4' : count <= 9 ? 'text-xl mb-2' : 'text-base mb-1';
+            const vsClass = count <= 4 ? 'text-3xl' : count <= 9 ? 'text-xl' : 'text-base';
+            const innerGap = count <= 4 ? 'gap-4' : count <= 9 ? 'gap-2' : 'gap-1';
+            const badgeClass = count <= 4 ? 'px-6 py-2 text-xl' : count <= 9 ? 'px-3 py-1 text-sm' : 'px-2 py-0.5 text-xs';
+            const scorerClass = count <= 4 ? 'px-4 py-3 text-lg' : count <= 9 ? 'px-2 py-1 text-sm' : 'px-1 py-0.5 text-xs';
+            const openClass = count <= 4 ? 'text-4xl lg:text-5xl' : count <= 9 ? 'text-2xl' : 'text-base';
 
             return (
                 <div className="h-full w-full bg-slate-950 flex flex-col p-6 overflow-hidden">
-                    <div className={`grid ${gridClass} gap-6 flex-1`}>
+                    <div className={`grid ${gridClass} auto-rows-fr ${gapClass} flex-1 min-h-0`}>
                         {displayBoards.map(({ idx, match }) => {
                             const isWinner = recentWinners[idx];
                             const isNewMatch = match && match.startTime && (currentTime - match.startTime < 180000);
 
                             return (
-                                <div key={idx} className={`flex flex-col justify-center items-center rounded-[2rem] p-8 transition-all duration-500 overflow-hidden relative ${isWinner ? 'border-4 border-yellow-400 bg-emerald-900 animate-winner z-10' : match ? (isNewMatch ? 'bg-slate-900 animate-new-match' : 'border-4 border-emerald-500 bg-slate-900 shadow-[0_0_40px_rgba(16,185,129,0.1)]') : 'border-4 border-slate-800 opacity-40'}`}>
+                                <div key={idx} className={`flex flex-col justify-center items-center ${roundedClass} ${cardPadding} min-h-0 transition-all duration-500 overflow-hidden relative ${isWinner ? 'border-4 border-yellow-400 bg-emerald-900 animate-winner z-10' : match ? (isNewMatch ? 'bg-slate-900 animate-new-match' : 'border-4 border-emerald-500 bg-slate-900 shadow-[0_0_40px_rgba(16,185,129,0.1)]') : 'border-4 border-slate-800 opacity-40'}`}>
                                     {isWinner ? (
                                         <div className="flex flex-col items-center justify-center h-full w-full gap-4 text-center animate-fade-in absolute inset-0 bg-emerald-900 z-20">
                                             <div className="text-8xl mb-4">🏆</div>
@@ -356,34 +368,34 @@
                                             <div className={`${fontClass} font-black text-white uppercase drop-shadow-lg px-4 text-center break-words`}>{isWinner.winnerName}</div>
                                         </div>
                                     ) : null}
-                                    
-                                    <div className="text-3xl font-black text-slate-500 mb-4 uppercase tracking-widest text-center w-full z-0">
+
+                                    <div className={`${labelClass} font-black text-slate-500 uppercase tracking-widest text-center w-full z-0 truncate`}>
                                         {boardNames[idx] || `Board ${idx + 1}`}
                                     </div>
-                                    
+
                                     {match ? (
-                                        <div className="flex flex-col items-center gap-4 w-full flex-1 z-0">
+                                        <div className={`flex flex-col items-center ${innerGap} w-full flex-1 min-h-0 z-0`}>
                                             <div className={`${fontClass} font-black text-white text-center uppercase break-words w-full`}>
                                                 {match.p1?.name || 'TBD'}
                                             </div>
-                                            <div className="text-emerald-500 font-black text-3xl italic opacity-40">VS</div>
+                                            <div className={`text-emerald-500 font-black ${vsClass} italic opacity-40`}>VS</div>
                                             <div className={`${fontClass} font-black text-white text-center uppercase break-words w-full`}>
                                                 {match.p2?.name || 'TBD'}
                                             </div>
-                                            
-                                            <div className="mt-auto w-full flex flex-col items-center gap-3">
-                                                <div className={`px-6 py-2 rounded-full text-xl font-black border-2 uppercase ${isNewMatch ? 'bg-amber-600/20 text-amber-400 border-amber-500/30' : 'bg-emerald-600/20 text-emerald-400 border-emerald-500/30'}`}>
+
+                                            <div className={`mt-auto w-full flex flex-col items-center ${innerGap}`}>
+                                                <div className={`${badgeClass} rounded-full font-black border-2 uppercase ${isNewMatch ? 'bg-amber-600/20 text-amber-400 border-amber-500/30' : 'bg-emerald-600/20 text-emerald-400 border-emerald-500/30'}`}>
                                                     {getRoundLabel(match.round)}
                                                 </div>
-                                                <div className="bg-slate-800 text-slate-300 px-4 py-3 rounded-lg text-lg font-bold border border-slate-700 w-full text-center uppercase tracking-widest mt-2 shadow-inner">
+                                                <div className={`bg-slate-800 text-slate-300 ${scorerClass} rounded-lg font-bold border border-slate-700 w-full text-center uppercase tracking-widest shadow-inner truncate`}>
                                                     Scorer: <span className={isNewMatch ? "text-amber-400 ml-2" : "text-emerald-400 ml-2"}>{scorers[idx] || 'REQUIRED'}</span>
                                                 </div>
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="flex-1 flex flex-col items-center justify-center text-center opacity-60 z-0">
-                                            <div className="text-slate-600 font-black text-4xl lg:text-5xl italic uppercase mb-2">Board Open</div>
-                                            <div className="text-slate-500 font-bold text-lg lg:text-xl tracking-widest uppercase">Awaiting Next Match</div>
+                                        <div className="flex-1 flex flex-col items-center justify-center text-center opacity-60 z-0 min-h-0">
+                                            <div className={`text-slate-600 font-black ${openClass} italic uppercase mb-2`}>Board Open</div>
+                                            <div className={`text-slate-500 font-bold ${count <= 4 ? 'text-lg lg:text-xl' : 'text-sm'} tracking-widest uppercase`}>Awaiting Next Match</div>
                                         </div>
                                     )}
                                 </div>
@@ -1177,9 +1189,9 @@
                             </div>
                             {phase === 'tournament' && (
                                 <div className="flex gap-2">
-                                    <button onClick={() => setView('dashboard')} className={`p-2 px-3 rounded-lg font-bold text-sm flex items-center gap-1 whitespace-nowrap ${view === 'dashboard' ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-300'}`}>📊 Boards</button>
-                                    <button onClick={() => setView('upcoming')} className={`p-2 px-3 rounded-lg font-bold text-sm flex items-center gap-1 whitespace-nowrap ${view === 'upcoming' ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-300'}`}>🔜 Upcoming</button>
-                                    <button onClick={() => setView('bracket')} className={`p-2 px-3 rounded-lg font-bold text-sm flex items-center gap-1 whitespace-nowrap ${view === 'bracket' ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-300'}`}>🌳 Bracket</button>
+                                    <button onClick={() => setView('dashboard')} className={`p-2 px-3 rounded-lg font-bold text-sm flex items-center gap-1 whitespace-nowrap ${view === 'dashboard' ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-300'}`} title="Live board control - record match winners">📊 Boards</button>
+                                    <button onClick={() => setView('upcoming')} className={`p-2 px-3 rounded-lg font-bold text-sm flex items-center gap-1 whitespace-nowrap ${view === 'upcoming' ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-300'}`} title="See matches waiting to be played">🔜 Upcoming</button>
+                                    <button onClick={() => setView('bracket')} className={`p-2 px-3 rounded-lg font-bold text-sm flex items-center gap-1 whitespace-nowrap ${view === 'bracket' ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-300'}`} title="View the full bracket">🌳 Bracket</button>
                                     <button onClick={() => setView('projector')} className={`p-2 px-3 rounded-lg font-bold text-sm flex items-center gap-1 whitespace-nowrap ${view === 'projector' ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-300'}`} title="Projector Mode">📺</button>
                                     <button onClick={() => window.open(`${window.location.origin}${window.location.pathname}?pin=${tournamentId}&view=projector`, '_blank')} className="p-2 px-3 rounded-lg font-bold text-sm bg-slate-700 text-slate-300 hover:bg-slate-600 whitespace-nowrap" title="Open this tournament's Projector view in a new tab">🔗📺</button>
                                     <div className="w-px bg-slate-600 mx-1"></div>
@@ -1280,9 +1292,9 @@
                                                     <div>
                                                         <h2 className="text-white font-black text-lg mb-4">2. Choose a Game Mode</h2>
                                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                                            <button onClick={() => setGameMode('knockout')} className={`p-4 rounded-lg border-2 font-bold ${gameMode === 'knockout' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-800 border-slate-600 text-slate-400'}`}>🏆 Knockout</button>
-                                                            <button onClick={() => setGameMode('seeded48')} className={`p-4 rounded-lg border-2 font-bold ${gameMode === 'seeded48' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-800 border-slate-600 text-slate-400'}`}>⭐ Seeded (48)</button>
-                                                            <button onClick={() => setGameMode('league')} className={`p-4 rounded-lg border-2 font-bold ${gameMode === 'league' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-800 border-slate-600 text-slate-400'}`}>📊 League</button>
+                                                            <button onClick={() => setGameMode('knockout')} className={`p-4 rounded-lg border-2 font-bold ${gameMode === 'knockout' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-800 border-slate-600 text-slate-400'}`} title="Single elimination - lose once and you're out">🏆 Knockout</button>
+                                                            <button onClick={() => setGameMode('seeded48')} className={`p-4 rounded-lg border-2 font-bold ${gameMode === 'seeded48' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-800 border-slate-600 text-slate-400'}`} title="Fixed 48-player seeded knockout draw - top 16 seeds get a Round 1 bye">⭐ Seeded (48)</button>
+                                                            <button onClick={() => setGameMode('league')} className={`p-4 rounded-lg border-2 font-bold ${gameMode === 'league' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-800 border-slate-600 text-slate-400'}`} title="Round robin - everyone plays everyone">📊 League</button>
                                                         </div>
                                                         {gameMode === 'seeded48' && <p className="text-xs text-emerald-400 italic mt-2">Requires exactly 48 players. Top 16 get Byes. Missing spots automatically fill with BYEs.</p>}
                                                     </div>
@@ -1351,6 +1363,7 @@
                                                                                         key={name}
                                                                                         onClick={() => toggleCaptain(name)}
                                                                                         className={`p-3 rounded-lg border text-sm font-bold text-left truncate transition-colors ${isSelected ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-800 border-slate-600 text-slate-400 hover:bg-slate-700'}`}
+                                                                                        title={isSelected ? `Remove ${name}` : `Add ${name}`}
                                                                                     >
                                                                                         {isSelected ? '✓ ' : '+ '}{name}
                                                                                     </button>
